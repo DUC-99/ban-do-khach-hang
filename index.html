@@ -11,11 +11,21 @@
       height: 100%;
       margin: 0;
       font-family: sans-serif;
-      /* ✅ Cho phép copy nội dung */
-      -webkit-user-select: text;
-      -moz-user-select: text;
-      -ms-user-select: text;
-      user-select: text;
+      /* ✅ Cho phép copy toàn trang */
+      -webkit-user-select: text !important;
+      -moz-user-select: text !important;
+      -ms-user-select: text !important;
+      user-select: text !important;
+      -webkit-touch-callout: default !important;
+    }
+
+    * {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+      -moz-user-select: text !important;
+      -ms-user-select: text !important;
+      -webkit-touch-callout: default !important;
+      pointer-events: auto !important;
     }
 
     #mapContainer { height: 100%; width: 100%; overflow: hidden; position: relative; }
@@ -86,6 +96,8 @@
       transform: translate(-50%, -50px);
       position: absolute;
       z-index: 700;
+      user-select: text !important;
+      -webkit-user-select: text !important;
     }
 
     #gotoHCM {
@@ -123,17 +135,21 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      user-select: text !important;
+      -webkit-user-select: text !important;
     }
 
     #toggleTracking { left: 20px; bottom: 20px; }
 
     .control-btn.active { background: #007bff; color: white; border-color: #0062d6; }
 
-    /* ✅ Cho phép chọn và copy nội dung trong popup */
-    .leaflet-popup-content {
+    /* ✅ Cho phép chọn và copy nội dung trong popup (cả mobile & desktop) */
+    .leaflet-popup-content, .leaflet-popup-tip-container, .leaflet-popup-content-wrapper {
       user-select: text !important;
       -webkit-user-select: text !important;
       -moz-user-select: text !important;
+      -ms-user-select: text !important;
+      -webkit-touch-callout: default !important;
     }
   </style>
 </head>
@@ -154,6 +170,17 @@
   <button id="toggleTracking" class="control-btn" title="Bật/tắt định vị">Bật GPS</button>
 
   <script>
+    /* ✅ Ép toàn trang cho phép chọn & copy trên cả máy tính + điện thoại */
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll("*").forEach(el => {
+        el.style.userSelect = "text";
+        el.style.webkitUserSelect = "text";
+        el.style.MozUserSelect = "text";
+        el.style.msUserSelect = "text";
+        el.style.webkitTouchCallout = "default";
+      });
+    });
+
     const DATA_BASE_URL = "https://script.google.com/macros/s/AKfycbzLgLyzQ2bF0VKIMo8eaK7nRM-IbqevAWiq-xF75bmoA1muGvE0nyHbAiDvgyH3Gx3RmA/exec";
     const map = L.map("map").setView([10.776, 106.7], 11);
 
