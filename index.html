@@ -7,7 +7,17 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body { height: 100%; margin: 0; font-family: sans-serif; -webkit-user-select:none; -webkit-touch-callout:none; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: sans-serif;
+      /* ✅ Cho phép copy nội dung */
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
+    }
+
     #mapContainer { height: 100%; width: 100%; overflow: hidden; position: relative; }
     #map { height: 100%; width: 100%; }
 
@@ -72,7 +82,6 @@
       font-size: 13px;
       white-space: nowrap;
       pointer-events: none;
-      user-select: none;
       box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
       transform: translate(-50%, -50px);
       position: absolute;
@@ -119,6 +128,13 @@
     #toggleTracking { left: 20px; bottom: 20px; }
 
     .control-btn.active { background: #007bff; color: white; border-color: #0062d6; }
+
+    /* ✅ Cho phép chọn và copy nội dung trong popup */
+    .leaflet-popup-content {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+      -moz-user-select: text !important;
+    }
   </style>
 </head>
 <body>
@@ -133,18 +149,13 @@
     <button class="sheet-btn" data-sheet="SUKIN 4">SUKIN 4</button>
   </div>
 
-  <div id="mapContainer">
-    <div id="map"></div>
-  </div>
-
+  <div id="mapContainer"><div id="map"></div></div>
   <button id="gotoHCM" title="Về TP.HCM">📍</button>
   <button id="toggleTracking" class="control-btn" title="Bật/tắt định vị">Bật GPS</button>
 
   <script>
     const DATA_BASE_URL = "https://script.google.com/macros/s/AKfycbzLgLyzQ2bF0VKIMo8eaK7nRM-IbqevAWiq-xF75bmoA1muGvE0nyHbAiDvgyH3Gx3RmA/exec";
-
-    const map = L.map("map", { zoomControl: true }).setView([10.776, 106.7], 11);
-    const mapContainer = document.getElementById("mapContainer");
+    const map = L.map("map").setView([10.776, 106.7], 11);
 
     let markers = [];
     let currentLocationMarker = null;
@@ -156,21 +167,14 @@
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    const getIcon = (color = "blue") => {
-      let iconUrl = `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`;
-
-      // Không cần màu nâu, chỉ dùng xanh lá cây cho hôm nay
-      // Nếu bạn muốn màu nâu thì thêm đoạn xử lý ở đây
-
-      return L.icon({
-        iconUrl: iconUrl,
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41],
-      });
-    };
+    const getIcon = (color = "blue") => L.icon({
+      iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`,
+      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41],
+    });
 
     const currentLocationIcon = L.icon({
       iconUrl: "https://cdn-icons-png.flaticon.com/512/64/64113.png",
@@ -180,36 +184,27 @@
     });
 
     function isOlderThan10Days(dateStr) {
-      if (!dateStr || dateStr.trim() === "") return true;
+      if (!dateStr) return true;
       const parts = dateStr.split(/[\/\-]/);
-      let day, month, year;
-      if (dateStr.includes("/")) [day, month, year] = parts.map(p => parseInt(p));
-      else [year, month, day] = parts.map(p => parseInt(p));
+      const [day, month, year] = dateStr.includes("/") ? parts.map(Number) : [parts[2], parts[1], parts[0]].map(Number);
       const date = new Date(year, month - 1, day);
       if (isNaN(date)) return true;
-      const diff = (new Date() - date) / (1000 * 60 * 60 * 24);
-      return diff > 10;
+      return (new Date() - date) / (1000 * 60 * 60 * 24) > 10;
     }
 
     function isToday(dateStr) {
-      if (!dateStr || dateStr.trim() === "") return false;
+      if (!dateStr) return false;
       const parts = dateStr.split(/[\/\-]/);
-      let day, month, year;
-      if (dateStr.includes("/")) [day, month, year] = parts.map(p => parseInt(p));
-      else [year, month, day] = parts.map(p => parseInt(p));
+      const [day, month, year] = dateStr.includes("/") ? parts.map(Number) : [parts[2], parts[1], parts[0]].map(Number);
       const date = new Date(year, month - 1, day);
-      if (isNaN(date)) return false;
-
       const today = new Date();
-      return date.getDate() === today.getDate() &&
-             date.getMonth() === today.getMonth() &&
-             date.getFullYear() === today.getFullYear();
+      return date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
     }
 
     function getPopupContent(marker) {
       const d = marker.customData || {};
       return `
-        <div style="line-height:1.4; font-size:14px;">
+        <div style="line-height:1.5; font-size:14px;">
           <b>🆔 MÃ HỢP ĐỒNG:</b> ${d.mahd || "—"}<br>
           👤 <b>KHÁCH HÀNG:</b> ${d.hoten || "—"}<br>
           💬 <b>M0:</b> ${d.m0 || "—"}<br>
@@ -237,49 +232,32 @@
     }
 
     async function loadData(sheet = "SUKIN 1") {
-      try {
-        markers.forEach(m => m.remove?.());
-        markers = [];
-
-        const res = await fetch(`${DATA_BASE_URL}?sheet=${encodeURIComponent(sheet)}`);
-        const data = await res.json();
-
-        data.forEach(item => {
-          const lat = parseFloat(item.lat);
-          const lng = parseFloat(item.lng);
-          if (isNaN(lat) || isNaN(lng)) return;
-
-          let color = "blue";
-
-          if (isToday(item.ngaydi)) {
-            color = "green"; // Hôm nay tô màu xanh lá cây
-          } else if (isOlderThan10Days(item.ngaydi)) {
-            color = "red"; // Cũ hơn 10 ngày tô đỏ
-          } else {
-            color = "blue"; // Mới hơn 10 ngày tô xanh dương
-          }
-
-          const marker = L.marker([lat, lng], { icon: getIcon(color) }).addTo(map);
-          marker.customData = { ...item, lat, lng, color };
-          marker.bindPopup(getPopupContent(marker));
-          addContractLabel(marker);
-          markers.push(marker);
-        });
-      } catch (err) {
-        alert("Lỗi khi tải dữ liệu.");
-      }
+      markers.forEach(m => m.remove?.());
+      markers = [];
+      const res = await fetch(`${DATA_BASE_URL}?sheet=${encodeURIComponent(sheet)}`);
+      const data = await res.json();
+      data.forEach(item => {
+        const lat = parseFloat(item.lat), lng = parseFloat(item.lng);
+        if (isNaN(lat) || isNaN(lng)) return;
+        let color = isToday(item.ngaydi) ? "green" : isOlderThan10Days(item.ngaydi) ? "red" : "blue";
+        const marker = L.marker([lat, lng], { icon: getIcon(color) }).addTo(map);
+        marker.customData = { ...item, lat, lng, color };
+        marker.bindPopup(getPopupContent(marker));
+        addContractLabel(marker);
+        markers.push(marker);
+      });
     }
 
     function setupSmartSearch() {
       const input = document.getElementById("searchInput");
-      input.addEventListener("keydown", (e) => {
+      input.addEventListener("keydown", e => {
         if (e.key !== "Enter") return;
-        const query = input.value.trim().toLowerCase();
-        if (!query) return;
+        const q = input.value.trim().toLowerCase();
+        if (!q) return;
         let found = false;
         markers.forEach(m => {
-          const t = `${m.customData.mahd} ${m.customData.hoten} ${m.customData.diachi}`.toLowerCase();
-          if (t.includes(query)) {
+          const text = `${m.customData.mahd} ${m.customData.hoten} ${m.customData.diachi}`.toLowerCase();
+          if (text.includes(q)) {
             map.setView(m.getLatLng(), 15);
             m.openPopup();
             found = true;
@@ -290,31 +268,18 @@
     }
 
     function startTracking() {
-      if (!navigator.geolocation) {
-        alert("Thiết bị không hỗ trợ GPS");
-        return;
-      }
+      if (!navigator.geolocation) return alert("Thiết bị không hỗ trợ GPS");
       if (watchId) return;
       watchId = navigator.geolocation.watchPosition(
         pos => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          const accuracy = pos.coords.accuracy;
+          const { latitude: lat, longitude: lng, accuracy } = pos.coords;
           if (!currentLocationMarker) {
-            currentLocationMarker = L.marker([lat, lng], { icon: currentLocationIcon })
-              .addTo(map)
-              .bindPopup("📍 Bạn đang ở đây");
-            currentLocationCircle = L.circle([lat, lng], {
-              radius: accuracy,
-              color: "#136AEC",
-              fillColor: "#136AEC",
-              fillOpacity: 0.15
-            }).addTo(map);
+            currentLocationMarker = L.marker([lat, lng], { icon: currentLocationIcon }).addTo(map).bindPopup("📍 Bạn đang ở đây");
+            currentLocationCircle = L.circle([lat, lng], { radius: accuracy, color: "#136AEC", fillColor: "#136AEC", fillOpacity: 0.15 }).addTo(map);
             map.setView([lat, lng], 15);
           } else {
             currentLocationMarker.setLatLng([lat, lng]);
-            currentLocationCircle.setLatLng([lat, lng]);
-            currentLocationCircle.setRadius(accuracy);
+            currentLocationCircle.setLatLng([lat, lng]).setRadius(accuracy);
           }
         },
         err => console.error("GPS error:", err),
@@ -323,10 +288,8 @@
     }
 
     function stopTracking() {
-      if (watchId) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-      }
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+      watchId = null;
       if (currentLocationMarker) map.removeLayer(currentLocationMarker);
       if (currentLocationCircle) map.removeLayer(currentLocationCircle);
       currentLocationMarker = null;
@@ -334,31 +297,19 @@
     }
 
     function setupButtons() {
-      const btns = document.querySelectorAll(".sheet-btn");
-      btns.forEach(btn => {
+      document.querySelectorAll(".sheet-btn").forEach(btn => {
         btn.addEventListener("click", () => {
-          btns.forEach(b => b.classList.remove("active"));
+          document.querySelectorAll(".sheet-btn").forEach(b => b.classList.remove("active"));
           btn.classList.add("active");
           loadData(btn.dataset.sheet);
         });
       });
-
-      document.getElementById("gotoHCM").addEventListener("click", () => {
-        map.setView([10.776, 106.7], 12);
-      });
-
-      const toggleTrackingBtn = document.getElementById("toggleTracking");
-      toggleTrackingBtn.addEventListener("click", () => {
-        if (watchId) {
-          stopTracking();
-          toggleTrackingBtn.classList.remove("active");
-          toggleTrackingBtn.textContent = "Bật GPS";
-        } else {
-          startTracking();
-          toggleTrackingBtn.classList.add("active");
-          toggleTrackingBtn.textContent = "Tắt GPS";
-        }
-      });
+      document.getElementById("gotoHCM").onclick = () => map.setView([10.776, 106.7], 12);
+      const toggle = document.getElementById("toggleTracking");
+      toggle.onclick = () => {
+        if (watchId) { stopTracking(); toggle.classList.remove("active"); toggle.textContent = "Bật GPS"; }
+        else { startTracking(); toggle.classList.add("active"); toggle.textContent = "Tắt GPS"; }
+      };
     }
 
     window.onload = () => {
