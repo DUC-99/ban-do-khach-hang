@@ -9,9 +9,8 @@
   <style>
     html, body { height: 100%; margin: 0; font-family: sans-serif; -webkit-user-select:none; -webkit-touch-callout:none; }
     #mapContainer { height: 100%; width: 100%; overflow: hidden; position: relative; }
-    #map { height: 100%; width: 100%; transform-origin: 50% 50%; transition: transform 180ms linear; will-change: transform; }
+    #map { height: 100%; width: 100%; }
 
-    /* Ô tìm kiếm */
     #searchBox {
       position: absolute;
       top: 10px;
@@ -23,6 +22,7 @@
       border-radius: 6px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.4);
     }
+
     #searchInput {
       width: 320px;
       max-width: 80vw;
@@ -32,7 +32,6 @@
       border-radius: 4px;
     }
 
-    /* 🔘 Các nút chọn sheet */
     #sheetButtons {
       position: absolute;
       top: 60px;
@@ -48,6 +47,7 @@
       border-radius: 8px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.3);
     }
+
     .sheet-btn {
       border: 1px solid #007bff;
       background: white;
@@ -57,12 +57,12 @@
       font-weight: 600;
       color: #007bff;
     }
+
     .sheet-btn.active {
       background: #007bff;
       color: white;
     }
 
-    /* Nhãn mã hợp đồng */
     .contract-label {
       background-color: white;
       padding: 2px 6px;
@@ -79,7 +79,6 @@
       z-index: 700;
     }
 
-    /* 🔘 Nút về TP.HCM */
     #gotoHCM {
       position: absolute;
       bottom: 20px;
@@ -97,9 +96,9 @@
       align-items: center;
       justify-content: center;
     }
+
     #gotoHCM:hover { background: #f0f0f0; }
 
-    /* 📍 Nút bật/tắt theo dõi GPS */
     .control-btn {
       position: absolute;
       z-index: 1000;
@@ -116,12 +115,10 @@
       align-items: center;
       gap: 6px;
     }
-    #toggleTracking { left: 20px; bottom: 20px; }
-    #toggleCompass { left: 20px; bottom: 80px; }
-    .control-btn.active { background: #007bff; color: white; border-color: #0062d6; }
 
-    /* Khi map được xoay, ta sẽ counter-rotate các marker icon programmatically
-       nên không cần CSS thêm ở đây. */
+    #toggleTracking { left: 20px; bottom: 20px; }
+
+    .control-btn.active { background: #007bff; color: white; border-color: #0062d6; }
   </style>
 </head>
 <body>
@@ -129,7 +126,6 @@
     <input type="text" id="searchInput" placeholder="🔍 Tìm mã HĐ, địa chỉ hoặc khách hàng (Enter để tìm)...">
   </div>
 
-  <!-- 🔘 Nút chọn Sheet -->
   <div id="sheetButtons">
     <button class="sheet-btn active" data-sheet="SUKIN 1">SUKIN 1</button>
     <button class="sheet-btn" data-sheet="SUKIN 2">SUKIN 2</button>
@@ -143,35 +139,23 @@
 
   <button id="gotoHCM" title="Về TP.HCM">📍</button>
   <button id="toggleTracking" class="control-btn" title="Bật/tắt định vị">Bật GPS</button>
-  <button id="toggleCompass" class="control-btn" title="Bật/tắt Compass">Bật Compass</button>
 
   <script>
-    /****************************************************************
-     * BẢN ĐỒ SUKIN (Hoàn chỉnh) - gồm: realtime GPS + compass rotate
-     ****************************************************************/
     const DATA_BASE_URL = "https://script.google.com/macros/s/AKfycbzLgLyzQ2bF0VKIMo8eaK7nRM-IbqevAWiq-xF75bmoA1muGvE0nyHbAiDvgyH3Gx3RmA/exec";
 
     const map = L.map("map", { zoomControl: true }).setView([10.776, 106.7], 11);
     const mapContainer = document.getElementById("mapContainer");
-    const mapEl = document.getElementById("map");
 
     let markers = [];
     let currentLocationMarker = null;
     let currentLocationCircle = null;
     let watchId = null;
 
-    // Compass state
-    let compassEnabled = false;
-    let lastHeading = 0;
-    let deviceOrientationHandler = null;
-
-    // 🗺 Tile layer
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // 🎨 Marker icons
     const getIcon = (color = "blue") => L.icon({
       iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`,
       shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
@@ -188,7 +172,6 @@
       popupAnchor: [0, -32],
     });
 
-    // ---------- Utility ----------
     function isOlderThan10Days(dateStr) {
       if (!dateStr || dateStr.trim() === "") return true;
       const parts = dateStr.split(/[\/\-]/);
@@ -231,16 +214,12 @@
       marker.on("remove", () => label.remove());
     }
 
-    // ---------- Load data ----------
     async function loadData(sheet = "SUKIN 1") {
       try {
-        markers.forEach(m => {
-          if (m && m.remove) m.remove();
-        });
+        markers.forEach(m => m.remove?.());
         markers = [];
 
         const res = await fetch(`${DATA_BASE_URL}?sheet=${encodeURIComponent(sheet)}`);
-        if (!res.ok) throw new Error('Fetch error ' + res.status);
         const data = await res.json();
 
         data.forEach(item => {
@@ -252,21 +231,13 @@
           marker.customData = { ...item, lat, lng, color };
           marker.bindPopup(getPopupContent(marker));
           addContractLabel(marker);
-
-          // store base transform for later counter-rotate (used by compass)
-          marker.once('add', function() {
-            if (marker._icon) marker._icon.dataset.baseTransform = marker._icon.style.transform || '';
-          });
-
           markers.push(marker);
         });
       } catch (err) {
-        console.error("Lỗi tải dữ liệu:", err);
-        alert("Lỗi khi tải dữ liệu. Kiểm tra URL DATA_BASE_URL hoặc network.");
+        alert("Lỗi khi tải dữ liệu.");
       }
     }
 
-    // ---------- Search ----------
     function setupSmartSearch() {
       const input = document.getElementById("searchInput");
       input.addEventListener("keydown", (e) => {
@@ -286,13 +257,12 @@
       });
     }
 
-    // ---------- GPS tracking ----------
     function startTracking() {
       if (!navigator.geolocation) {
         alert("Thiết bị không hỗ trợ GPS");
         return;
       }
-      if (watchId) return; // already started
+      if (watchId) return;
       watchId = navigator.geolocation.watchPosition(
         pos => {
           const lat = pos.coords.latitude;
@@ -308,10 +278,6 @@
               fillColor: "#136AEC",
               fillOpacity: 0.15
             }).addTo(map);
-            // ensure base transforms are captured for the current location marker
-            currentLocationMarker.once('add', () => {
-              if (currentLocationMarker._icon) currentLocationMarker._icon.dataset.baseTransform = currentLocationMarker._icon.style.transform || '';
-            });
             map.setView([lat, lng], 15);
           } else {
             currentLocationMarker.setLatLng([lat, lng]);
@@ -319,10 +285,7 @@
             currentLocationCircle.setRadius(accuracy);
           }
         },
-        err => {
-          console.error("GPS error:", err);
-          // optionally inform user
-        },
+        err => console.error("GPS error:", err),
         { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
       );
     }
@@ -332,121 +295,16 @@
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
       }
-      if (currentLocationMarker) { try { map.removeLayer(currentLocationMarker); } catch(e){} }
-      if (currentLocationCircle) { try { map.removeLayer(currentLocationCircle); } catch(e){} }
+      if (currentLocationMarker) map.removeLayer(currentLocationMarker);
+      if (currentLocationCircle) map.removeLayer(currentLocationCircle);
       currentLocationMarker = null;
       currentLocationCircle = null;
     }
 
-    // ---------- Compass (map rotation) ----------
-    function applyMapRotation(heading) {
-      // rotate the map container (map element) so device heading points to top
-      // Map rotation value is negative heading to make the top of the map point to heading
-      const rotateDeg = -heading;
-      mapEl.style.transform = `rotate(${rotateDeg}deg)`;
-
-      // Counter-rotate marker icons so they remain upright
-      const allMarkers = markers.slice();
-      if (currentLocationMarker) allMarkers.push(currentLocationMarker);
-      allMarkers.forEach(m => {
-        if (!m._icon) return;
-        // store base transform if not stored yet
-        const base = m._icon.dataset.baseTransform !== undefined ? m._icon.dataset.baseTransform : (m._icon.dataset.baseTransform = m._icon.style.transform || '');
-        // apply base + rotate(heading)
-        m._icon.style.transform = `${base} rotate(${heading}deg)`;
-      });
-
-      // Also rotate marker shadows if present
-      allMarkers.forEach(m => {
-        if (!m._shadow) return;
-        const baseSh = m._shadow.dataset.baseTransform !== undefined ? m._shadow.dataset.baseTransform : (m._shadow.dataset.baseTransform = m._shadow.style.transform || '');
-        m._shadow.style.transform = `${baseSh} rotate(${heading}deg)`;
-      });
-
-      lastHeading = heading;
-    }
-
-    function handleDeviceOrientationEvent(ev) {
-      let heading = null;
-      // iOS (webkitCompassHeading)
-      if (ev.webkitCompassHeading !== undefined && ev.webkitCompassHeading !== null) {
-        heading = ev.webkitCompassHeading; // 0 = north
-      } else if (ev.absolute === true && ev.alpha !== null) {
-        // alpha is rotation around z-axis in degrees: 0 = device pointing to North? depends on device
-        // Many implementations use: heading = 360 - alpha
-        heading = 360 - ev.alpha;
-      } else if (ev.alpha !== null) {
-        heading = 360 - ev.alpha;
-      }
-
-      if (heading !== null && !isNaN(heading)) {
-        // normalize
-        heading = (heading + 360) % 360;
-        applyMapRotation(heading);
-      }
-    }
-
-    async function startCompass() {
-      // On modern iOS, must request permission via DeviceOrientationEvent.requestPermission()
-      if (typeof DeviceOrientationEvent !== 'undefined' &&
-          typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try {
-          const perm = await DeviceOrientationEvent.requestPermission();
-          if (perm !== 'granted') {
-            alert('Không có quyền truy cập cảm biến hướng. Vui lòng cho phép để sử dụng Compass.');
-            return;
-          }
-        } catch (err) {
-          console.warn('Request permission error', err);
-        }
-      }
-
-      // add listener
-      if (!deviceOrientationHandler) {
-        deviceOrientationHandler = (ev) => handleDeviceOrientationEvent(ev);
-        window.addEventListener('deviceorientationabsolute', deviceOrientationHandler, true);
-        window.addEventListener('deviceorientation', deviceOrientationHandler, true);
-      }
-      compassEnabled = true;
-      document.getElementById('toggleCompass').classList.add('active');
-      document.getElementById('toggleCompass').innerText = 'Tắt Compass';
-    }
-
-    function stopCompass() {
-      if (deviceOrientationHandler) {
-        window.removeEventListener('deviceorientationabsolute', deviceOrientationHandler, true);
-        window.removeEventListener('deviceorientation', deviceOrientationHandler, true);
-        deviceOrientationHandler = null;
-      }
-      compassEnabled = false;
-      // reset transforms
-      mapEl.style.transform = '';
-      // restore marker base transforms (remove appended rotate)
-      const allMarkers = markers.slice();
-      if (currentLocationMarker) allMarkers.push(currentLocationMarker);
-      allMarkers.forEach(m => {
-        if (!m._icon) return;
-        const base = m._icon.dataset.baseTransform !== undefined ? m._icon.dataset.baseTransform : '';
-        m._icon.style.transform = base;
-      });
-      allMarkers.forEach(m => {
-        if (!m._shadow) return;
-        const baseSh = m._shadow.dataset.baseTransform !== undefined ? m._shadow.dataset.baseTransform : '';
-        m._shadow.style.transform = baseSh;
-      });
-
-      document.getElementById('toggleCompass').classList.remove('active');
-      document.getElementById('toggleCompass').innerText = 'Bật Compass';
-    }
-
-    // ---------- UI binding ----------
     document.getElementById("gotoHCM").addEventListener("click", () => {
-      // fly to HCM
-      // When map is rotated, setView still works; but the visual might be rotated. That's expected.
       map.flyTo([10.776, 106.700], 12);
     });
 
-    // GPS toggle
     const gpsBtn = document.getElementById("toggleTracking");
     gpsBtn.addEventListener("click", () => {
       if (gpsBtn.classList.contains("active")) {
@@ -460,18 +318,6 @@
       }
     });
 
-    // Compass toggle
-    const compassBtn = document.getElementById("toggleCompass");
-    compassBtn.addEventListener("click", async () => {
-      if (compassEnabled) {
-        stopCompass();
-      } else {
-        // Start compass (may request permission)
-        await startCompass();
-      }
-    });
-
-    // Sheet buttons
     document.querySelectorAll(".sheet-btn").forEach(btn => {
       btn.addEventListener("click", async () => {
         document.querySelectorAll(".sheet-btn").forEach(b => b.classList.remove("active"));
@@ -480,24 +326,11 @@
       });
     });
 
-    // ---------- On load ----------
     window.addEventListener('load', async () => {
       await loadData("SUKIN 1");
       setupSmartSearch();
-
-      // ensure base transform attributes for existing markers (in case added before compass)
-      markers.forEach(m => {
-        if (m._icon && m._icon.dataset.baseTransform === undefined) m._icon.dataset.baseTransform = m._icon.style.transform || '';
-        if (m._shadow && m._shadow.dataset.baseTransform === undefined) m._shadow.dataset.baseTransform = m._shadow.style.transform || '';
-      });
-
-      // optional: start tracking automatically if user had clicked earlier; we don't auto-start now.
     });
 
-    // Adjust map size on orientation change/resizing for better mobile experience
-    window.addEventListener('orientationchange', () => {
-      setTimeout(() => map.invalidateSize(), 300);
-    });
     window.addEventListener('resize', () => setTimeout(() => map.invalidateSize(), 120));
   </script>
 </body>
