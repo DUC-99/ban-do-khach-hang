@@ -2,13 +2,16 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Bản đồ khách hàng</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bản đồ khách hàng - SUKIN</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body { height: 100%; margin: 0; }
-    #map { height: 100%; width: 100%; }
+    html, body { height: 100%; margin: 0; font-family: sans-serif; -webkit-user-select:none; -webkit-touch-callout:none; }
+    #mapContainer { height: 100%; width: 100%; overflow: hidden; position: relative; }
+    #map { height: 100%; width: 100%; transform-origin: 50% 50%; transition: transform 180ms linear; will-change: transform; }
+
+    /* Ô tìm kiếm */
     #searchBox {
       position: absolute;
       top: 10px;
@@ -17,194 +20,485 @@
       z-index: 1000;
       background: white;
       padding: 6px;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+    #searchInput {
+      width: 320px;
+      max-width: 80vw;
+      padding: 6px;
+      font-size: 14px;
+      border: 1px solid #aaa;
       border-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
-    #searchBox input {
-      width: 250px;
+
+    /* 🔘 Các nút chọn sheet */
+    #sheetButtons {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      background: rgba(255,255,255,0.9);
+      padding: 5px 10px;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
     }
-    .popup-btns button {
-      background: none;
-      border: none;
-      font-size: 18px;
+    .sheet-btn {
+      border: 1px solid #007bff;
+      background: white;
+      padding: 5px 12px;
+      border-radius: 4px;
       cursor: pointer;
-      margin-left: 5px;
+      font-weight: 600;
+      color: #007bff;
     }
+    .sheet-btn.active {
+      background: #007bff;
+      color: white;
+    }
+
+    /* Nhãn mã hợp đồng */
+    .contract-label {
+      background-color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #666;
+      font-weight: bold;
+      font-size: 13px;
+      white-space: nowrap;
+      pointer-events: none;
+      user-select: none;
+      box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+      transform: translate(-50%, -50px);
+      position: absolute;
+      z-index: 700;
+    }
+
+    /* 🔘 Nút về TP.HCM */
+    #gotoHCM {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: white;
+      border: none;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #gotoHCM:hover { background: #f0f0f0; }
+
+    /* 📍 Nút bật/tắt theo dõi GPS */
+    .control-btn {
+      position: absolute;
+      z-index: 1000;
+      background: white;
+      border: 1px solid #007bff;
+      border-radius: 20px;
+      padding: 8px 14px;
+      font-size: 14px;
+      color: #007bff;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #toggleTracking { left: 20px; bottom: 20px; }
+    #toggleCompass { left: 20px; bottom: 80px; }
+    .control-btn.active { background: #007bff; color: white; border-color: #0062d6; }
+
+    /* Khi map được xoay, ta sẽ counter-rotate các marker icon programmatically
+       nên không cần CSS thêm ở đây. */
   </style>
 </head>
 <body>
   <div id="searchBox">
-    <input type="text" id="searchInput" placeholder="Tìm theo mã hợp đồng, tên hoặc địa chỉ..." />
+    <input type="text" id="searchInput" placeholder="🔍 Tìm mã HĐ, địa chỉ hoặc khách hàng (Enter để tìm)...">
   </div>
-  <div id="map"></div>
+
+  <!-- 🔘 Nút chọn Sheet -->
+  <div id="sheetButtons">
+    <button class="sheet-btn active" data-sheet="SUKIN 1">SUKIN 1</button>
+    <button class="sheet-btn" data-sheet="SUKIN 2">SUKIN 2</button>
+    <button class="sheet-btn" data-sheet="SUKIN 3">SUKIN 3</button>
+    <button class="sheet-btn" data-sheet="SUKIN 4">SUKIN 4</button>
+  </div>
+
+  <div id="mapContainer">
+    <div id="map"></div>
+  </div>
+
+  <button id="gotoHCM" title="Về TP.HCM">📍</button>
+  <button id="toggleTracking" class="control-btn" title="Bật/tắt định vị">Bật GPS</button>
+  <button id="toggleCompass" class="control-btn" title="Bật/tắt Compass">Bật Compass</button>
 
   <script>
-    const DATA_URL = "https://script.google.com/macros/s/AKfycbwA7VH_IbTiYpNjXIUX-stMmOSLWiXqRZ4h7Fzc-xMJmVqUPIQn-B37PMkngLH_AOyc/exec";
-    const COLORS = ["blue", "red", "green", "yellow", "violet", "black", "grey"];
-    const COLOR_NAMES = {
-      blue: "Xanh dương",
-      red: "Đỏ",
-      green: "Xanh lá",
-      yellow: "Vàng",
-      violet: "Tím",
-      black: "Đen",
-      grey: "Xám"
-    };
+    /****************************************************************
+     * BẢN ĐỒ SUKIN (Hoàn chỉnh) - gồm: realtime GPS + compass rotate
+     ****************************************************************/
+    const DATA_BASE_URL = "https://script.google.com/macros/s/AKfycbzLgLyzQ2bF0VKIMo8eaK7nRM-IbqevAWiq-xF75bmoA1muGvE0nyHbAiDvgyH3Gx3RmA/exec";
 
-    let map = L.map("map").setView([10.776, 106.7], 11);
+    const map = L.map("map", { zoomControl: true }).setView([10.776, 106.7], 11);
+    const mapContainer = document.getElementById("mapContainer");
+    const mapEl = document.getElementById("map");
+
     let markers = [];
-    let destinationMarker = null;
+    let currentLocationMarker = null;
+    let currentLocationCircle = null;
+    let watchId = null;
 
+    // Compass state
+    let compassEnabled = false;
+    let lastHeading = 0;
+    let deviceOrientationHandler = null;
+
+    // 🗺 Tile layer
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    function getIcon(color = "blue") {
-      return L.icon({
-        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`,
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
-      });
+    // 🎨 Marker icons
+    const getIcon = (color = "blue") => L.icon({
+      iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`,
+      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41],
+    });
+
+    const currentLocationIcon = L.icon({
+      iconUrl: "https://cdn-icons-png.flaticon.com/512/64/64113.png",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
+    });
+
+    // ---------- Utility ----------
+    function isOlderThan10Days(dateStr) {
+      if (!dateStr || dateStr.trim() === "") return true;
+      const parts = dateStr.split(/[\/\-]/);
+      let day, month, year;
+      if (dateStr.includes("/")) [day, month, year] = parts.map(p => parseInt(p));
+      else [year, month, day] = parts.map(p => parseInt(p));
+      const date = new Date(year, month - 1, day);
+      if (isNaN(date)) return true;
+      const diff = (new Date() - date) / (1000 * 60 * 60 * 24);
+      return diff > 10;
     }
 
     function getPopupContent(marker) {
-      const { name, address, contract, lat, lng, image, color } = marker.customData;
-
-      const colorButtons = COLORS.map(c => `
-        <button 
-          onclick="applyColor('${c}', ${lat}, ${lng})"
-          style="background:${c}; width:20px; height:20px; border-radius:50%; border:1px solid #ccc; margin-right:4px;"
-          title="${COLOR_NAMES[c]}"
-        ></button>
-      `).join("");
-
+      const d = marker.customData || {};
       return `
-        <b>${name || "Chưa có tên"}</b><br>
-        🆔 Mã HĐ: ${contract || "Không có"}<br>
-        📍 ${address}<br>
-        🌐 ${lat.toFixed(5)}, ${lng.toFixed(5)}<br>
-        ${image ? `<img src="${image}" width="180"><br>` : ""}
-        <div style="margin-top:5px"><b>Chọn màu:</b><br>${colorButtons}</div>
-        <div class="popup-btns" style="text-align:right; margin-top: 6px">
-          <button onclick="editInfo(${lat}, ${lng})">✏️</button>
-          <button onclick="addImage(${lat}, ${lng})">📷</button>
-          <button onclick="setDestination(${lat}, ${lng})">📍</button>
-          <button onclick="deleteMarker(${lat}, ${lng})">🗑️</button>
-        </div>
-      `;
+        <div style="line-height:1.4; font-size:14px;">
+          <b>🆔 MÃ HỢP ĐỒNG:</b> ${d.mahd || "—"}<br>
+          👤 <b>KHÁCH HÀNG:</b> ${d.hoten || "—"}<br>
+          💬 <b>M0:</b> ${d.m0 || "—"}<br>
+          🏠 <b>ĐỊA CHỈ:</b> ${d.diachi || "—"}<br>
+          📅 <b>NGÀY ĐI:</b> ${d.ngaydi || "—"}<br>
+          👷 <b>NHÂN VIÊN:</b> ${d.nguoidi || "—"}<br>
+          📝 <b>GHI CHÚ:</b> ${d.ghichu || "—"}<br>
+          🌐 <b>TỌA ĐỘ:</b> ${d.lat}, ${d.lng}
+        </div>`;
     }
 
-    function findMarker(lat, lng) {
-      return markers.find(m => m.getLatLng().lat === lat && m.getLatLng().lng === lng);
-    }
-
-    function applyColor(color, lat, lng) {
-      const marker = findMarker(lat, lng);
-      if (marker) {
-        marker.setIcon(getIcon(color));
-        marker.customData.color = color;
-        marker.bindPopup(getPopupContent(marker)).openPopup();
+    function addContractLabel(marker) {
+      const label = L.DomUtil.create("div", "contract-label");
+      label.innerText = marker.customData.mahd || "";
+      label.style.borderColor = marker.customData.color || "blue";
+      map.getPanes().overlayPane.appendChild(label);
+      function updatePos() {
+        const pos = map.latLngToLayerPoint(marker.getLatLng());
+        label.style.left = `${pos.x}px`;
+        label.style.top = `${pos.y - 18}px`;
       }
+      updatePos();
+      map.on("zoom move", updatePos);
+      marker.on("remove", () => label.remove());
     }
 
-    function editInfo(lat, lng) {
-      const marker = findMarker(lat, lng);
-      if (marker) {
-        const newName = prompt("Nhập tên mới:", marker.customData.name);
-        if (newName) {
-          marker.customData.name = newName;
-          marker.bindPopup(getPopupContent(marker)).openPopup();
-        }
-      }
-    }
-
-    function addImage(lat, lng) {
-      const url = prompt("Nhập URL hình ảnh:");
-      const marker = findMarker(lat, lng);
-      if (marker && url) {
-        marker.customData.image = url;
-        marker.bindPopup(getPopupContent(marker)).openPopup();
-      }
-    }
-
-    function setDestination(lat, lng) {
-      if (destinationMarker) destinationMarker.setOpacity(1);
-      const marker = findMarker(lat, lng);
-      if (marker) {
-        destinationMarker = marker;
-        marker.setOpacity(0.6);
-        alert("Đã đặt làm điểm đến");
-      }
-    }
-
-    function deleteMarker(lat, lng) {
-      if (!confirm("Bạn có chắc muốn xóa marker này không?")) return;
-      const marker = findMarker(lat, lng);
-      if (marker) {
-        map.removeLayer(marker);
-        markers = markers.filter(m => m !== marker);
-      }
-    }
-
-    async function loadData() {
+    // ---------- Load data ----------
+    async function loadData(sheet = "SUKIN 1") {
       try {
-        const resp = await fetch(DATA_URL);
-        const data = await resp.json();
+        markers.forEach(m => {
+          if (m && m.remove) m.remove();
+        });
+        markers = [];
 
-        if (!Array.isArray(data)) {
-          console.error("Dữ liệu trả về không phải mảng:", data);
-          return;
-        }
+        const res = await fetch(`${DATA_BASE_URL}?sheet=${encodeURIComponent(sheet)}`);
+        if (!res.ok) throw new Error('Fetch error ' + res.status);
+        const data = await res.json();
 
         data.forEach(item => {
           const lat = parseFloat(item.lat);
           const lng = parseFloat(item.lng);
           if (isNaN(lat) || isNaN(lng)) return;
-
-          const marker = L.marker([lat, lng], {
-            icon: getIcon("blue")
-          }).addTo(map);
-
-          marker.customData = {
-            name: item.name || "Không rõ",
-            address: item.address || "Chưa có địa chỉ",
-            contract: item.contract || "",
-            lat: lat,
-            lng: lng,
-            image: "",
-            color: "blue"
-          };
-
+          const color = isOlderThan10Days(item.ngaydi) ? "red" : "blue";
+          const marker = L.marker([lat, lng], { icon: getIcon(color) }).addTo(map);
+          marker.customData = { ...item, lat, lng, color };
           marker.bindPopup(getPopupContent(marker));
+          addContractLabel(marker);
+
+          // store base transform for later counter-rotate (used by compass)
+          marker.once('add', function() {
+            if (marker._icon) marker._icon.dataset.baseTransform = marker._icon.style.transform || '';
+          });
+
           markers.push(marker);
         });
       } catch (err) {
-        console.error("Lỗi khi tải dữ liệu:", err);
+        console.error("Lỗi tải dữ liệu:", err);
+        alert("Lỗi khi tải dữ liệu. Kiểm tra URL DATA_BASE_URL hoặc network.");
       }
     }
 
-    function setupSearch() {
+    // ---------- Search ----------
+    function setupSmartSearch() {
       const input = document.getElementById("searchInput");
-      input.addEventListener("input", () => {
-        const kw = input.value.toLowerCase().trim();
+      input.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        const query = input.value.trim().toLowerCase();
+        if (!query) return;
+        let found = false;
         markers.forEach(m => {
-          const text = `${m.customData.name} ${m.customData.address} ${m.customData.contract}`.toLowerCase();
-          if (text.includes(kw)) {
-            m.addTo(map);
-          } else {
-            map.removeLayer(m);
+          const t = `${m.customData.mahd} ${m.customData.hoten} ${m.customData.diachi}`.toLowerCase();
+          if (t.includes(query)) {
+            map.setView(m.getLatLng(), 15);
+            m.openPopup();
+            found = true;
           }
         });
+        if (!found) alert("❌ Không tìm thấy thông tin phù hợp.");
       });
     }
 
-    window.onload = () => {
-      loadData().then(setupSearch);
-    };
+    // ---------- GPS tracking ----------
+    function startTracking() {
+      if (!navigator.geolocation) {
+        alert("Thiết bị không hỗ trợ GPS");
+        return;
+      }
+      if (watchId) return; // already started
+      watchId = navigator.geolocation.watchPosition(
+        pos => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const accuracy = pos.coords.accuracy;
+          if (!currentLocationMarker) {
+            currentLocationMarker = L.marker([lat, lng], { icon: currentLocationIcon })
+              .addTo(map)
+              .bindPopup("📍 Bạn đang ở đây");
+            currentLocationCircle = L.circle([lat, lng], {
+              radius: accuracy,
+              color: "#136AEC",
+              fillColor: "#136AEC",
+              fillOpacity: 0.15
+            }).addTo(map);
+            // ensure base transforms are captured for the current location marker
+            currentLocationMarker.once('add', () => {
+              if (currentLocationMarker._icon) currentLocationMarker._icon.dataset.baseTransform = currentLocationMarker._icon.style.transform || '';
+            });
+            map.setView([lat, lng], 15);
+          } else {
+            currentLocationMarker.setLatLng([lat, lng]);
+            currentLocationCircle.setLatLng([lat, lng]);
+            currentLocationCircle.setRadius(accuracy);
+          }
+        },
+        err => {
+          console.error("GPS error:", err);
+          // optionally inform user
+        },
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+      );
+    }
+
+    function stopTracking() {
+      if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+      if (currentLocationMarker) { try { map.removeLayer(currentLocationMarker); } catch(e){} }
+      if (currentLocationCircle) { try { map.removeLayer(currentLocationCircle); } catch(e){} }
+      currentLocationMarker = null;
+      currentLocationCircle = null;
+    }
+
+    // ---------- Compass (map rotation) ----------
+    function applyMapRotation(heading) {
+      // rotate the map container (map element) so device heading points to top
+      // Map rotation value is negative heading to make the top of the map point to heading
+      const rotateDeg = -heading;
+      mapEl.style.transform = `rotate(${rotateDeg}deg)`;
+
+      // Counter-rotate marker icons so they remain upright
+      const allMarkers = markers.slice();
+      if (currentLocationMarker) allMarkers.push(currentLocationMarker);
+      allMarkers.forEach(m => {
+        if (!m._icon) return;
+        // store base transform if not stored yet
+        const base = m._icon.dataset.baseTransform !== undefined ? m._icon.dataset.baseTransform : (m._icon.dataset.baseTransform = m._icon.style.transform || '');
+        // apply base + rotate(heading)
+        m._icon.style.transform = `${base} rotate(${heading}deg)`;
+      });
+
+      // Also rotate marker shadows if present
+      allMarkers.forEach(m => {
+        if (!m._shadow) return;
+        const baseSh = m._shadow.dataset.baseTransform !== undefined ? m._shadow.dataset.baseTransform : (m._shadow.dataset.baseTransform = m._shadow.style.transform || '');
+        m._shadow.style.transform = `${baseSh} rotate(${heading}deg)`;
+      });
+
+      lastHeading = heading;
+    }
+
+    function handleDeviceOrientationEvent(ev) {
+      let heading = null;
+      // iOS (webkitCompassHeading)
+      if (ev.webkitCompassHeading !== undefined && ev.webkitCompassHeading !== null) {
+        heading = ev.webkitCompassHeading; // 0 = north
+      } else if (ev.absolute === true && ev.alpha !== null) {
+        // alpha is rotation around z-axis in degrees: 0 = device pointing to North? depends on device
+        // Many implementations use: heading = 360 - alpha
+        heading = 360 - ev.alpha;
+      } else if (ev.alpha !== null) {
+        heading = 360 - ev.alpha;
+      }
+
+      if (heading !== null && !isNaN(heading)) {
+        // normalize
+        heading = (heading + 360) % 360;
+        applyMapRotation(heading);
+      }
+    }
+
+    async function startCompass() {
+      // On modern iOS, must request permission via DeviceOrientationEvent.requestPermission()
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const perm = await DeviceOrientationEvent.requestPermission();
+          if (perm !== 'granted') {
+            alert('Không có quyền truy cập cảm biến hướng. Vui lòng cho phép để sử dụng Compass.');
+            return;
+          }
+        } catch (err) {
+          console.warn('Request permission error', err);
+        }
+      }
+
+      // add listener
+      if (!deviceOrientationHandler) {
+        deviceOrientationHandler = (ev) => handleDeviceOrientationEvent(ev);
+        window.addEventListener('deviceorientationabsolute', deviceOrientationHandler, true);
+        window.addEventListener('deviceorientation', deviceOrientationHandler, true);
+      }
+      compassEnabled = true;
+      document.getElementById('toggleCompass').classList.add('active');
+      document.getElementById('toggleCompass').innerText = 'Tắt Compass';
+    }
+
+    function stopCompass() {
+      if (deviceOrientationHandler) {
+        window.removeEventListener('deviceorientationabsolute', deviceOrientationHandler, true);
+        window.removeEventListener('deviceorientation', deviceOrientationHandler, true);
+        deviceOrientationHandler = null;
+      }
+      compassEnabled = false;
+      // reset transforms
+      mapEl.style.transform = '';
+      // restore marker base transforms (remove appended rotate)
+      const allMarkers = markers.slice();
+      if (currentLocationMarker) allMarkers.push(currentLocationMarker);
+      allMarkers.forEach(m => {
+        if (!m._icon) return;
+        const base = m._icon.dataset.baseTransform !== undefined ? m._icon.dataset.baseTransform : '';
+        m._icon.style.transform = base;
+      });
+      allMarkers.forEach(m => {
+        if (!m._shadow) return;
+        const baseSh = m._shadow.dataset.baseTransform !== undefined ? m._shadow.dataset.baseTransform : '';
+        m._shadow.style.transform = baseSh;
+      });
+
+      document.getElementById('toggleCompass').classList.remove('active');
+      document.getElementById('toggleCompass').innerText = 'Bật Compass';
+    }
+
+    // ---------- UI binding ----------
+    document.getElementById("gotoHCM").addEventListener("click", () => {
+      // fly to HCM
+      // When map is rotated, setView still works; but the visual might be rotated. That's expected.
+      map.flyTo([10.776, 106.700], 12);
+    });
+
+    // GPS toggle
+    const gpsBtn = document.getElementById("toggleTracking");
+    gpsBtn.addEventListener("click", () => {
+      if (gpsBtn.classList.contains("active")) {
+        gpsBtn.classList.remove("active");
+        gpsBtn.innerText = "Bật GPS";
+        stopTracking();
+      } else {
+        gpsBtn.classList.add("active");
+        gpsBtn.innerText = "Tắt GPS";
+        startTracking();
+      }
+    });
+
+    // Compass toggle
+    const compassBtn = document.getElementById("toggleCompass");
+    compassBtn.addEventListener("click", async () => {
+      if (compassEnabled) {
+        stopCompass();
+      } else {
+        // Start compass (may request permission)
+        await startCompass();
+      }
+    });
+
+    // Sheet buttons
+    document.querySelectorAll(".sheet-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        document.querySelectorAll(".sheet-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        await loadData(btn.dataset.sheet);
+      });
+    });
+
+    // ---------- On load ----------
+    window.addEventListener('load', async () => {
+      await loadData("SUKIN 1");
+      setupSmartSearch();
+
+      // ensure base transform attributes for existing markers (in case added before compass)
+      markers.forEach(m => {
+        if (m._icon && m._icon.dataset.baseTransform === undefined) m._icon.dataset.baseTransform = m._icon.style.transform || '';
+        if (m._shadow && m._shadow.dataset.baseTransform === undefined) m._shadow.dataset.baseTransform = m._shadow.style.transform || '';
+      });
+
+      // optional: start tracking automatically if user had clicked earlier; we don't auto-start now.
+    });
+
+    // Adjust map size on orientation change/resizing for better mobile experience
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => map.invalidateSize(), 300);
+    });
+    window.addEventListener('resize', () => setTimeout(() => map.invalidateSize(), 120));
   </script>
 </body>
 </html>
