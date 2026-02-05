@@ -210,7 +210,7 @@
       popupAnchor: [0, -32],
     });
 
-    function isOlderThan10Days(dateStr) {
+    function isOlderThan20Days(dateStr) {
       if (!dateStr) return true;
       const parts = dateStr.split(/[\/\-]/);
       const [day, month, year] = dateStr.includes("/") ? parts.map(Number) : [parts[2], parts[1], parts[0]].map(Number);
@@ -266,7 +266,7 @@
       data.forEach(item => {
         const lat = parseFloat(item.lat), lng = parseFloat(item.lng);
         if (isNaN(lat) || isNaN(lng)) return;
-        let color = isToday(item.ngaydi) ? "green" : isOlderThan10Days(item.ngaydi) ? "red" : "blue";
+        let color = isToday(item.ngaydi) ? "green" : isOlderThan20Days(item.ngaydi) ? "red" : "blue";
         const marker = L.marker([lat, lng], { icon: getIcon(color) }).addTo(map);
         marker.customData = { ...item, lat, lng, color };
         marker.bindPopup(getPopupContent(marker));
@@ -347,4 +347,5 @@
   </script>
 </body>
 </html>
+
 
