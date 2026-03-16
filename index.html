@@ -4,347 +4,177 @@
   <meta charset="UTF-8" />
   <title>Bản đồ khách hàng - SUKIN</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com" />
+  <script src="https://unpkg.com"></script>
   <style>
-    html, body {
-      height: 100%;
-      margin: 0;
-      font-family: sans-serif;
-      /* ✅ Cho phép copy toàn trang */
-      -webkit-user-select: text !important;
-      -moz-user-select: text !important;
-      -ms-user-select: text !important;
-      user-select: text !important;
-      -webkit-touch-callout: default !important;
-    }
-
-    * {
-      user-select: text !important;
-      -webkit-user-select: text !important;
-      -moz-user-select: text !important;
-      -ms-user-select: text !important;
-      -webkit-touch-callout: default !important;
-      pointer-events: auto !important;
-    }
-
+    html, body { height: 100%; margin: 0; font-family: sans-serif; user-select: text !important; }
     #mapContainer { height: 100%; width: 100%; overflow: hidden; position: relative; }
-    #map { height: 100%; width: 100%; }
-
-    #searchBox {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      background: white;
-      padding: 6px;
-      border-radius: 6px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-    }
-
-    #searchInput {
-      width: 320px;
-      max-width: 80vw;
-      padding: 6px;
-      font-size: 14px;
-      border: 1px solid #aaa;
-      border-radius: 4px;
-    }
-
-    #sheetButtons {
-      position: absolute;
-      top: 60px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: center;
-      background: rgba(255,255,255,0.9);
-      padding: 5px 10px;
-      border-radius: 8px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-    }
-
-    .sheet-btn {
-      border: 1px solid #007bff;
-      background: white;
-      padding: 5px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: 600;
-      color: #007bff;
-    }
-
-    .sheet-btn.active {
-      background: #007bff;
-      color: white;
-    }
-
-    .contract-label {
-      background-color: white;
-      padding: 2px 6px;
-      border-radius: 4px;
-      border: 1px solid #666;
-      font-weight: bold;
-      font-size: 13px;
-      white-space: nowrap;
-      pointer-events: none;
-      box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-      transform: translate(-50%, -50px);
-      position: absolute;
-      z-index: 700;
-      user-select: text !important;
-      -webkit-user-select: text !important;
-    }
-
-    #gotoHCM {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      z-index: 1000;
-      background: white;
-      border: none;
-      border-radius: 50%;
-      width: 44px;
-      height: 44px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-      font-size: 22px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    #gotoHCM:hover { background: #f0f0f0; }
-
-    .control-btn {
-      position: absolute;
-      z-index: 1000;
-      background: white;
-      border: 1px solid #007bff;
-      border-radius: 20px;
-      padding: 8px 14px;
-      font-size: 14px;
-      color: #007bff;
-      font-weight: bold;
-      cursor: pointer;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      user-select: text !important;
-      -webkit-user-select: text !important;
-    }
-
-    #toggleTracking { left: 20px; bottom: 20px; }
-
-    .control-btn.active { background: #007bff; color: white; border-color: #0062d6; }
-
-    /* ✅ Cho phép chọn và copy nội dung trong popup (cả mobile & desktop) */
-    .leaflet-popup-content, .leaflet-popup-tip-container, .leaflet-popup-content-wrapper {
-      user-select: text !important;
-      -webkit-user-select: text !important;
-      -moz-user-select: text !important;
-      -ms-user-select: text !important;
-      -webkit-touch-callout: default !important;
-    }
+    #map { height: 100%; width: 100%; background: #f0f0f0; }
+    #searchBox { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000; background: white; padding: 6px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+    #searchInput { width: 320px; max-width: 80vw; padding: 6px; font-size: 14px; border: 1px solid #aaa; border-radius: 4px; }
+    #sheetButtons { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; background: rgba(255,255,255,0.9); padding: 5px 10px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    .sheet-btn { border: 1px solid #007bff; background: white; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; color: #007bff; }
+    .sheet-btn.active { background: #007bff; color: white; }
+    .contract-label { background-color: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #666; font-weight: bold; font-size: 13px; white-space: nowrap; pointer-events: none; position: absolute; z-index: 700; transform: translate(-50%, -45px); box-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+    #gotoHCM { position: absolute; bottom: 20px; right: 20px; z-index: 1000; background: white; border: none; border-radius: 50%; width: 44px; height: 44px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .control-btn { position: absolute; z-index: 1000; background: white; border: 1px solid #007bff; border-radius: 20px; padding: 8px 14px; font-size: 14px; color: #007bff; font-weight: bold; cursor: pointer; left: 20px; bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+    .control-btn.active { background: #007bff; color: white; }
+    .leaflet-popup-content { user-select: text !important; }
   </style>
 </head>
 <body>
-  <div id="searchBox">
-    <input type="text" id="searchInput" placeholder="🔍 Tìm mã HĐ, địa chỉ hoặc khách hàng (Enter để tìm)...">
-  </div>
-
+  <div id="searchBox"><input type="text" id="searchInput" placeholder="🔍 Tìm mã HĐ, địa chỉ hoặc khách hàng (Enter)..."></div>
   <div id="sheetButtons">
     <button class="sheet-btn active" data-sheet="SUKIN 1">SUKIN 1</button>
     <button class="sheet-btn" data-sheet="SUKIN 2">SUKIN 2</button>
     <button class="sheet-btn" data-sheet="SUKIN 3">SUKIN 3</button>
     <button class="sheet-btn" data-sheet="SUKIN 4">SUKIN 4</button>
   </div>
-
   <div id="mapContainer"><div id="map"></div></div>
-  <button id="gotoHCM" title="Về TP.HCM">📍</button>
-  <button id="toggleTracking" class="control-btn" title="Bật/tắt định vị">Bật GPS</button>
+  <button id="gotoHCM">📍</button>
+  <button id="toggleTracking" class="control-btn">Bật GPS</button>
 
   <script>
-    /* ✅ Ép toàn trang cho phép chọn & copy trên cả máy tính + điện thoại */
-    document.addEventListener("DOMContentLoaded", () => {
-      document.querySelectorAll("*").forEach(el => {
-        el.style.userSelect = "text";
-        el.style.webkitUserSelect = "text";
-        el.style.MozUserSelect = "text";
-        el.style.msUserSelect = "text";
-        el.style.webkitTouchCallout = "default";
-      });
-    });
-
-    const DATA_BASE_URL = "https://script.google.com/macros/s/AKfycbzLgLyzQ2bF0VKIMo8eaK7nRM-IbqevAWiq-xF75bmoA1muGvE0nyHbAiDvgyH3Gx3RmA/exec";
+    const DATA_BASE_URL = "https://script.google.com";
     const map = L.map("map").setView([10.776, 106.7], 11);
+    let markers = [], watchId = null, currentLocationMarker = null, currentLocationCircle = null;
 
-    let markers = [];
-    let currentLocationMarker = null;
-    let currentLocationCircle = null;
-    let watchId = null;
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
 
     const getIcon = (color = "blue") => L.icon({
-      iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${color}.png`,
-      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41],
+      iconUrl: `https://raw.githubusercontent.com{color}.png`,
+      shadowUrl: "https://unpkg.com",
+      iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
     });
 
     const currentLocationIcon = L.icon({
-      iconUrl: "https://cdn-icons-png.flaticon.com/512/64/64113.png",
-      iconSize: [32, 32],
-      iconAnchor: [16, 32],
-      popupAnchor: [0, -32],
+      iconUrl: "https://cdn-icons-png.flaticon.com",
+      iconSize: [32, 32], iconAnchor: [16, 32]
     });
 
-    function isOlderThan20Days(dateStr) {
-      if (!dateStr) return true;
-      const parts = dateStr.split(/[\/\-]/);
-      const [day, month, year] = dateStr.includes("/") ? parts.map(Number) : [parts[2], parts[1], parts[0]].map(Number);
-      const date = new Date(year, month - 1, day);
-      if (isNaN(date)) return true;
-      return (new Date() - date) / (1000 * 60 * 60 * 24) > 20;
+    function parseDate(dateStr) {
+      if (!dateStr) return null;
+      const parts = dateStr.toString().split(/[\/\-]/);
+      if (parts.length < 3) return null;
+      // Định dạng dd/mm/yyyy
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    }
+
+    function isTodayOrFuture(dateStr) {
+      const d = parseDate(dateStr);
+      if (!d || isNaN(d.getTime())) return false;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      return d >= today;
     }
 
     function isToday(dateStr) {
-      if (!dateStr) return false;
-      const parts = dateStr.split(/[\/\-]/);
-      const [day, month, year] = dateStr.includes("/") ? parts.map(Number) : [parts[2], parts[1], parts[0]].map(Number);
-      const date = new Date(year, month - 1, day);
+      const d = parseDate(dateStr);
+      if (!d) return false;
       const today = new Date();
-      return date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+      return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
     }
 
-    function getPopupContent(marker) {
-      const d = marker.customData || {};
-      return `
-        <div style="line-height:1.5; font-size:14px;">
-          <b>🆔 MÃ HỢP ĐỒNG:</b> ${d.mahd || "—"}<br>
-          👤 <b>KHÁCH HÀNG:</b> ${d.hoten || "—"}<br>
-          💬 <b>M0:</b> ${d.m0 || "—"}<br>
-          🏠 <b>ĐỊA CHỈ:</b> ${d.diachi || "—"}<br>
-          📅 <b>NGÀY ĐI:</b> ${d.ngaydi || "—"}<br>
-          👷 <b>NHÂN VIÊN:</b> ${d.nguoidi || "—"}<br>
-          📝 <b>GHI CHÚ:</b> ${d.ghichu || "—"}<br>
-          🌐 <b>TỌA ĐỘ:</b> ${d.lat}, ${d.lng}
-        </div>`;
+    function isOlderThan20Days(dateStr) {
+      const d = parseDate(dateStr);
+      if (!d) return false;
+      return (new Date() - d) / (1000 * 60 * 60 * 24) > 20;
+    }
+
+    function getPopupContent(m) {
+      const d = m.customData;
+      return `<div style="line-height:1.5; font-size:14px;">
+        <b>🆔 MÃ HĐ:</b> ${d.mahd||"—"}<br><b>👤 KH:</b> ${d.hoten||"—"}<br>
+        <b>🏠 ĐC:</b> ${d.diachi||"—"}<br><b>📅 NGÀY ĐI:</b> ${d.ngaydi||"—"}<br>
+        <b>📅 NGÀY ĐI SUKIN:</b> ${d.ngaydisukin||"—"}<br><b>📝 GHI CHÚ:</b> ${d.ghichu||"—"}
+      </div>`;
     }
 
     function addContractLabel(marker) {
-      const label = L.DomUtil.create("div", "contract-label");
+      const label = L.DomUtil.create("div", "contract-label", map.getPanes().overlayPane);
       label.innerText = marker.customData.mahd || "";
-      label.style.borderColor = marker.customData.color || "blue";
-      map.getPanes().overlayPane.appendChild(label);
-      function updatePos() {
+      label.style.borderColor = marker.customData.color;
+      const updatePos = () => {
         const pos = map.latLngToLayerPoint(marker.getLatLng());
-        label.style.left = `${pos.x}px`;
-        label.style.top = `${pos.y - 18}px`;
-      }
-      updatePos();
+        label.style.left = pos.x + "px"; label.style.top = pos.y + "px";
+      };
       map.on("zoom move", updatePos);
-      marker.on("remove", () => label.remove());
+      updatePos();
+      marker.on("remove", () => { label.remove(); map.off("zoom move", updatePos); });
     }
 
     async function loadData(sheet = "SUKIN 1") {
-      markers.forEach(m => m.remove?.());
+      markers.forEach(m => m.remove());
       markers = [];
-      const res = await fetch(`${DATA_BASE_URL}?sheet=${encodeURIComponent(sheet)}`);
-      const data = await res.json();
-      data.forEach(item => {
-        const lat = parseFloat(item.lat), lng = parseFloat(item.lng);
-        if (isNaN(lat) || isNaN(lng)) return;
-        let color = isToday(item.ngaydi) ? "green" : isOlderThan20Days(item.ngaydi) ? "red" : "blue";
-        const marker = L.marker([lat, lng], { icon: getIcon(color) }).addTo(map);
-        marker.customData = { ...item, lat, lng, color };
-        marker.bindPopup(getPopupContent(marker));
-        addContractLabel(marker);
-        markers.push(marker);
-      });
+      try {
+        const res = await fetch(`${DATA_BASE_URL}?sheet=${encodeURIComponent(sheet)}`);
+        const data = await res.json();
+        data.forEach(item => {
+          const lat = parseFloat(item.lat), lng = parseFloat(item.lng);
+          if (isNaN(lat) || isNaN(lng)) return;
+          
+          let color = "blue";
+          // ƯU TIÊN SỐ 1: Cột K (ngaydisukin) >= Hôm nay -> ĐEN
+          if (isTodayOrFuture(item.ngaydisukin)) { 
+            color = "black"; 
+          } else if (isToday(item.ngaydi)) {
+            color = "green";
+          } else if (isOlderThan20Days(item.ngaydi)) {
+            color = "red";
+          }
+
+          const marker = L.marker([lat, lng], { icon: getIcon(color) }).addTo(map);
+          marker.customData = { ...item, lat, lng, color };
+          marker.bindPopup(getPopupContent(marker));
+          addContractLabel(marker);
+          markers.push(marker);
+        });
+      } catch (e) { console.error("Lỗi:", e); }
     }
 
     function setupSmartSearch() {
-      const input = document.getElementById("searchInput");
-      input.addEventListener("keydown", e => {
+      document.getElementById("searchInput").addEventListener("keydown", e => {
         if (e.key !== "Enter") return;
-        const q = input.value.trim().toLowerCase();
-        if (!q) return;
-        let found = false;
-        markers.forEach(m => {
-          const text = `${m.customData.mahd} ${m.customData.hoten} ${m.customData.diachi}`.toLowerCase();
-          if (text.includes(q)) {
-            map.setView(m.getLatLng(), 15);
-            m.openPopup();
-            found = true;
-          }
-        });
-        if (!found) alert("❌ Không tìm thấy thông tin phù hợp.");
+        const q = e.target.value.trim().toLowerCase();
+        const found = markers.find(m => `${m.customData.mahd} ${m.customData.hoten} ${m.customData.diachi}`.toLowerCase().includes(q));
+        if (found) { map.setView(found.getLatLng(), 17); found.openPopup(); }
+        else { alert("❌ Không tìm thấy!"); }
       });
     }
 
     function startTracking() {
-      if (!navigator.geolocation) return alert("Thiết bị không hỗ trợ GPS");
       if (watchId) return;
-      watchId = navigator.geolocation.watchPosition(
-        pos => {
-          const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-          if (!currentLocationMarker) {
-            currentLocationMarker = L.marker([lat, lng], { icon: currentLocationIcon }).addTo(map).bindPopup("📍 Bạn đang ở đây");
-            currentLocationCircle = L.circle([lat, lng], { radius: accuracy, color: "#136AEC", fillColor: "#136AEC", fillOpacity: 0.15 }).addTo(map);
-            map.setView([lat, lng], 15);
-          } else {
-            currentLocationMarker.setLatLng([lat, lng]);
-            currentLocationCircle.setLatLng([lat, lng]).setRadius(accuracy);
-          }
-        },
-        err => console.error("GPS error:", err),
-        { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
-      );
-    }
-
-    function stopTracking() {
-      if (watchId) navigator.geolocation.clearWatch(watchId);
-      watchId = null;
-      if (currentLocationMarker) map.removeLayer(currentLocationMarker);
-      if (currentLocationCircle) map.removeLayer(currentLocationCircle);
-      currentLocationMarker = null;
-      currentLocationCircle = null;
+      watchId = navigator.geolocation.watchPosition(pos => {
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        if (!currentLocationMarker) {
+          currentLocationMarker = L.marker([lat, lng], { icon: currentLocationIcon }).addTo(map).bindPopup("📍 Bạn đang ở đây");
+          currentLocationCircle = L.circle([lat, lng], { radius: accuracy, color: "#136AEC", fillOpacity: 0.1 }).addTo(map);
+          map.setView([lat, lng], 15);
+        } else {
+          currentLocationMarker.setLatLng([lat, lng]);
+          currentLocationCircle.setLatLng([lat, lng]).setRadius(accuracy);
+        }
+      }, null, { enableHighAccuracy: true });
     }
 
     function setupButtons() {
       document.querySelectorAll(".sheet-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          document.querySelectorAll(".sheet-btn").forEach(b => b.classList.remove("active"));
+        btn.onclick = () => {
+          document.querySelector(".sheet-btn.active").classList.remove("active");
           btn.classList.add("active");
           loadData(btn.dataset.sheet);
-        });
+        };
       });
       document.getElementById("gotoHCM").onclick = () => map.setView([10.776, 106.7], 12);
-      const toggle = document.getElementById("toggleTracking");
-      toggle.onclick = () => {
-        if (watchId) { stopTracking(); toggle.classList.remove("active"); toggle.textContent = "Bật GPS"; }
-        else { startTracking(); toggle.classList.add("active"); toggle.textContent = "Tắt GPS"; }
+      document.getElementById("toggleTracking").onclick = function() {
+        if (watchId) { 
+          navigator.geolocation.clearWatch(watchId); watchId = null;
+          if (currentLocationMarker) { map.removeLayer(currentLocationMarker); map.removeLayer(currentLocationCircle); }
+          currentLocationMarker = null; this.classList.remove("active"); this.innerText = "Bật GPS";
+        } else { startTracking(); this.classList.add("active"); this.innerText = "Tắt GPS"; }
       };
     }
 
-    window.onload = () => {
-      loadData("SUKIN 1");
-      setupSmartSearch();
-      setupButtons();
-    };
+    window.onload = () => { loadData("SUKIN 1"); setupSmartSearch(); setupButtons(); };
   </script>
 </body>
 </html>
-
