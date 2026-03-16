@@ -19,11 +19,10 @@
     #gotoHCM { position: absolute; bottom: 20px; right: 20px; z-index: 1000; background: white; border: none; border-radius: 50%; width: 44px; height: 44px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .control-btn { position: absolute; z-index: 1000; background: white; border: 1px solid #007bff; border-radius: 20px; padding: 8px 14px; font-size: 14px; color: #007bff; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3); left: 20px; bottom: 20px; }
     .control-btn.active { background: #007bff; color: white; }
-    .leaflet-popup-content { user-select: text !important; }
   </style>
 </head>
 <body>
-  <div id="searchBox"><input type="text" id="searchInput" placeholder="🔍 Tìm mã HĐ, tên hoặc địa chỉ..."></div>
+  <div id="searchBox"><input type="text" id="searchInput" placeholder="🔍 Tìm mã HĐ, tên hoặc địa chỉ (Enter)..."></div>
   <div id="sheetButtons">
     <button class="sheet-btn active" data-sheet="SUKIN 1">SUKIN 1</button>
     <button class="sheet-btn" data-sheet="SUKIN 2">SUKIN 2</button>
@@ -53,14 +52,17 @@
     });
 
     function parseDate(dateStr) {
-      if (!dateStr) return null;
-      const parts = dateStr.split(/[\/\-]/);
-      return dateStr.includes("/") ? new Date(parts[2], parts[1] - 1, parts[0]) : new Date(parts[0], parts[1] - 1, parts[2]);
+      if (!dateStr || typeof dateStr !== 'string') return null;
+      const parts = dateStr.includes("/") ? dateStr.split("/") : dateStr.split("-");
+      if (parts.length < 3) return null;
+      // Giả định dd/mm/yyyy
+      const d = parseInt(parts[0]), m = parseInt(parts[1]), y = parseInt(parts[2]);
+      return new Date(y, m - 1, d);
     }
 
     function isTodayOrFuture(dateStr) {
       const d = parseDate(dateStr);
-      if (!d || isNaN(d)) return false;
+      if (!d || isNaN(d.getTime())) return false;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       return d >= today;
@@ -75,13 +77,20 @@
 
     function isOlderThan20Days(dateStr) {
       const d = parseDate(dateStr);
-      if (!d) return true;
+      if (!d) return false;
       return (new Date() - d) / (1000 * 60 * 60 * 24) > 20;
     }
 
     function getPopupContent(m) {
       const d = m.customData;
-      return `<div style="font-size:14px;"><b>🆔 MÃ HĐ:</b> ${d.mahd||"—"}<br><b>👤 KH:</b> ${d.hoten||"—"}<br><b>🏠 ĐC:</b> ${d.diachi||"—"}<br><b>📅 NGÀY ĐI:</b> ${d.ngaydi||"—"}<br><b>📝 GHI CHÚ:</b> ${d.ghichu||"—"}</div>`;
+      return `<div style="font-size:14px; user-select:text;">
+        <b>🆔 MÃ HĐ:</b> ${d.mahd||"—"}<br>
+        <b>👤 KH:</b> ${d.hoten||"—"}<br>
+        <b>🏠 ĐC:</b> ${d.diachi||"—"}<br>
+        <b>📅 NGÀY ĐI:</b> ${d.ngaydi||"—"}<br>
+        <b>📅 NGÀY ĐI SUKIN:</b> ${d.ngaydisukin||"—"}<br>
+        <b>📝 GHI CHÚ:</b> ${d.ghichu||"—"}
+      </div>`;
     }
 
     function addContractLabel(marker) {
@@ -94,7 +103,7 @@
       };
       map.on("zoom move", updatePos);
       updatePos();
-      marker.on("remove", () => label.remove());
+      marker.on("remove", () => { label.remove(); map.off("zoom move", updatePos); });
     }
 
     async function loadData(sheet = "SUKIN 1") {
@@ -107,14 +116,15 @@
           const lat = parseFloat(item.lat), lng = parseFloat(item.lng);
           if (isNaN(lat) || isNaN(lng)) return;
           
-          // ƯU TIÊN 1: Cột K >= Hôm nay -> ĐEN
-          // ƯU TIÊN 2: Hôm nay -> XANH LÁ
-          // ƯU TIÊN 3: Quá 20 ngày -> ĐỎ
-          // CÒN LẠI: XANH DƯƠNG
           let color = "blue";
-          if (isTodayOrFuture(item.cotk)) color = "black";
-          else if (isToday(item.ngaydi)) color = "green";
-          else if (isOlderThan20Days(item.ngaydi)) color = "red";
+          // ĐIỀU KIỆN ƯU TIÊN SỐ 1: CỘT K (ngaydisukin) >= HÔM NAY -> ĐEN
+          if (isTodayOrFuture(item.ngaydisukin)) { 
+            color = "black"; 
+          } else if (isToday(item.ngaydi)) {
+            color = "green";
+          } else if (isOlderThan20Days(item.ngaydi)) {
+            color = "red";
+          }
 
           const marker = L.marker([lat, lng], { icon: getIcon(color) }).addTo(map);
           marker.customData = { ...item, lat, lng, color };
@@ -122,7 +132,7 @@
           addContractLabel(marker);
           markers.push(marker);
         });
-      } catch (e) { console.error("Load error:", e); }
+      } catch (e) { console.error("Lỗi:", e); }
     }
 
     function setupSmartSearch() {
@@ -130,16 +140,17 @@
       input.addEventListener("keydown", e => {
         if (e.key !== "Enter") return;
         const q = input.value.trim().toLowerCase();
-        const m = markers.find(m => `${m.customData.mahd} ${m.customData.hoten} ${m.customData.diachi}`.toLowerCase().includes(q));
-        if (m) { map.setView(m.getLatLng(), 16); m.openPopup(); } else { alert("❌ Không tìm thấy!"); }
+        const found = markers.find(m => `${m.customData.mahd} ${m.customData.hoten} ${m.customData.diachi}`.toLowerCase().includes(q));
+        if (found) { map.setView(found.getLatLng(), 17); found.openPopup(); } else { alert("❌ Không tìm thấy!"); }
       });
     }
 
     function startTracking() {
+      if (watchId) return;
       watchId = navigator.geolocation.watchPosition(pos => {
         const { latitude: lat, longitude: lng, accuracy } = pos.coords;
         if (!currentLocationMarker) {
-          currentLocationMarker = L.marker([lat, lng], { icon: currentLocationIcon }).addTo(map);
+          currentLocationMarker = L.marker([lat, lng], { icon: currentLocationIcon }).addTo(map).bindPopup("Bạn đang ở đây");
           currentLocationCircle = L.circle([lat, lng], { radius: accuracy, color: "#136AEC", fillOpacity: 0.1 }).addTo(map);
           map.setView([lat, lng], 15);
         } else {
@@ -167,7 +178,7 @@
       };
     }
 
-    window.onload = () => { loadData(); setupSmartSearch(); setupButtons(); };
+    window.onload = () => { loadData("SUKIN 1"); setupSmartSearch(); setupButtons(); };
   </script>
 </body>
 </html>
