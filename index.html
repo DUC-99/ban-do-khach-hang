@@ -181,7 +181,7 @@
       });
     });
 
-    const DATA_BASE_URL = "https://script.google.com/macros/s/AKfycbzLgLyzQ2bF0VKIMo8eaK7nRM-IbqevAWiq-xF75bmoA1muGvE0nyHbAiDvgyH3Gx3RmA/exec";
+    const DATA_BASE_URL = "https://script.google.com/macros/s/AKfycbzixTiJFAB6Udr51RFnnftsgL38M4BuEHYiFEb8Gy0lQNtZtOesGpwhLAR_XsN9Avn_Ig/exec";
     const map = L.map("map").setView([10.776, 106.7], 11);
 
     let markers = [];
@@ -228,20 +228,38 @@
       return date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
     }
 
-    function getPopupContent(marker) {
+        function getPopupContent(marker) {
       const d = marker.customData || {};
+      
+      // Xử lý hiển thị hình ảnh từ cột L
+      let imageHtml = "";
+      if (d.hinhanh && d.hinhanh.toString().trim().startsWith("http")) {
+        imageHtml = `
+          <div style="margin-top: 10px; text-align: center;">
+            <a href="${d.hinhanh}" target="_blank">
+              <img src="${d.hinhanh}" style="width:100%; max-width:250px; border-radius:8px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+            </a>
+            <p style="font-size:11px; color:gray; margin-top:2px;">(Nhấn vào ảnh để phóng to)</p>
+          </div>`;
+      } else {
+        imageHtml = `<div style="color:gray; font-style:italic; font-size:12px; margin-top:5px;">🖼️ Chưa có hình ảnh</div>`;
+      }
+
       return `
-        <div style="line-height:1.5; font-size:14px;">
-          <b>🆔 MÃ HỢP ĐỒNG:</b> ${d.mahd || "—"}<br>
+        <div style="line-height:1.6; font-size:14px; min-width:220px; max-width:280px; padding: 5px;">
+          <b style="color:#007bff; font-size:15px;">🆔 MÃ HĐ: ${d.mahd || "—"}</b><br>
           👤 <b>KHÁCH HÀNG:</b> ${d.hoten || "—"}<br>
           💬 <b>M0:</b> ${d.m0 || "—"}<br>
           🏠 <b>ĐỊA CHỈ:</b> ${d.diachi || "—"}<br>
           📅 <b>NGÀY ĐI:</b> ${d.ngaydi || "—"}<br>
           👷 <b>NHÂN VIÊN:</b> ${d.nguoidi || "—"}<br>
           📝 <b>GHI CHÚ:</b> ${d.ghichu || "—"}<br>
-          🌐 <b>TỌA ĐỘ:</b> ${d.lat}, ${d.lng}
+          📸 <b>HÌNH ẢNH:</b> ${imageHtml}
+          <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+          🌐 <b>TỌA ĐỘ:</b> <span style="font-family:monospace; font-size:12px;">${d.lat}, ${d.lng}</span>
         </div>`;
     }
+
 
     function addContractLabel(marker) {
       const label = L.DomUtil.create("div", "contract-label");
